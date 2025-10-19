@@ -1,0 +1,221 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>드래그앤드롭 케이크 꾸미기 (최종)</title>
+    <style>
+        /*
+        --------------------
+        1. CSS 스타일 (겹치기 및 사이즈 통일 반영)
+        --------------------
+        */
+        body {
+            display: flex;
+            justify-content: center;
+            align-items: flex-start;
+            height: 100vh;
+            margin: 0;
+            background-color: #f0f0f0;
+            font-family: sans-serif;
+        }
+
+        #app-container {
+            display: flex;
+            width: 900px;
+            margin-top: 50px;
+            box-shadow: 0 8px 16px rgba(0, 0, 0, 0.2);
+            background-color: white;
+            border-radius: 10px;
+            overflow: hidden;
+        }
+
+        /* 🎂 케이크 (드롭 영역) 스타일 */
+        #drop-area {
+            flex-basis: 70%;
+            position: relative;
+            background-color: #ffe0b2;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            padding: 30px;
+            min-height: 600px;
+        }
+
+        /* **핵심 1: 케이크 이미지 크기 기준** */
+        #person-image {
+            width: 90%; 
+            max-width: 450px; 
+            height: auto;
+            position: relative; /* 상대 위치 설정 (겹쳐지는 요소의 기준) */
+            z-index: 1;
+        }
+
+        /* 🍦 옷 (드래그 가능한 아이템) 스타일 */
+        #clothes-tray {
+            flex-basis: 30%;
+            padding: 20px;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            background-color: #f8f8f8;
+            border-left: 2px solid #eee;
+        }
+
+        .tray-title {
+            color: #333;
+            margin-bottom: 20px;
+        }
+
+        /* **핵심 2: 트레이의 옷 이미지 크기를 작게 유지 (선택용)** */
+        .draggable-item {
+            width: 120px; /* 선택하기 좋게 작게 유지 */
+            height: 120px;
+            object-fit: contain;
+            cursor: grab;
+            border: 1px solid #ddd;
+            border-radius: 8px;
+            padding: 5px;
+            background-color: white;
+            margin: 15px 0;
+            box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
+        }
+
+        /* **핵심 3: 드롭된 옷 스타일 - 케이크와 동일하게 설정** */
+        .dropped-item {
+            position: absolute;
+            /* 케이크 이미지와 동일하게 겹쳐지도록 설정 */
+            width: 90%;
+            max-width: 450px; 
+            height: auto;
+            top: 50%; /* 드롭 영역 중앙에 위치 */
+            left: 50%;
+            transform: translate(-50%, -50%); /* 정확한 중앙 정렬 */
+
+            z-index: 10; 
+            cursor: pointer;
+            box-shadow: none; /* 겹칠 때 그림자 제거 */
+            /* 배경 투명 유지를 위해 object-fit: contain 제거 */
+        }
+        
+        .dragging {
+            opacity: 0.4;
+            border: 2px dashed #333;
+        }
+    </style>
+</head>
+<body ondrop="bodyDrop(event)" ondragover="allowDrop(event)">
+    
+<div id="app-container">
+    <div id="drop-area" ondrop="drop(event)" ondragover="allowDrop(event)">
+        <img id="person-image" src="CAKE.PNG" alt="케이크 이미지">
+    </div>
+
+    <div id="clothes-tray">
+        <h3 class="tray-title">✨ 데코레이션 선택 ✨</h3>
+        <img id="cream1" src="CREAM1.PNG" class="draggable-item" draggable="true" ondragstart="drag(event)">
+        <img id="cream2" src="CREAM2.PNG" class="draggable-item" draggable="true" ondragstart="drag(event)">
+        <img id="cream3" src="CREAM3.PNG" class="draggable-item" draggable="true" ondragstart="drag(event)">
+    </div>
+</div>
+
+<script>
+    /*
+    --------------------
+    2. JavaScript 기능 (겹치도록 수정)
+    --------------------
+    */
+    let draggedElement = null;
+    let placedItems = {}; // 현재 케이크 위에 올라와 있는 크림을 추적 (ID: Element)
+
+    function drag(event) {
+        event.dataTransfer.setData("text/plain", event.target.id);
+        draggedElement = event.target;
+        
+        // 트레이에 있는 원본 아이템만 잠시 숨김
+        if (event.target.parentElement.id === 'clothes-tray') {
+            event.target.classList.add('dragging'); 
+        }
+    }
+
+    function allowDrop(event) {
+        event.preventDefault();
+    }
+
+    // 3. 케이크 (drop-area)에 드롭이 일어났을 때 호출
+    function drop(event) {
+        event.preventDefault();
+
+        const data = event.dataTransfer.getData("text/plain");
+        const originalElement = document.getElementById(data);
+        const dropArea = document.getElementById('drop-area');
+
+        // A. 트레이에서 케이크로 드롭 (새로운 옷 추가)
+        if (originalElement.parentElement.id === 'clothes-tray') {
+            const creamId = originalElement.id;
+
+            // **핵심 4: 기존에 해당 종류의 옷이 있으면 먼저 제거**
+            // (하나의 케이크 위에 동일한 종류의 크림이 여러 개 겹치는 것을 방지)
+            if (placedItems[creamId]) {
+                placedItems[creamId].remove();
+            }
+
+            const newElement = originalElement.cloneNode(true);
+            newElement.id = 'placed-' + creamId; // 고유 ID 부여
+            
+            // 클래스 및 속성 설정
+            newElement.classList.remove('draggable-item', 'dragging');
+            newElement.classList.add('dropped-item');
+            newElement.setAttribute('ondragstart', 'drag(event)'); // 다시 드래그할 수 있도록
+
+            // **겹치기 구현: 위치를 중앙으로 설정**
+            // CSS에서 이미 top: 50%, left: 50%, transform: translate(-50%, -50%)로 설정했으므로
+            // JS에서 별도의 좌표 계산 필요 없이 그냥 추가만 하면 됩니다.
+            
+            dropArea.appendChild(newElement);
+            placedItems[creamId] = newElement; // 맵에 추가
+
+            // 원본 복구
+            originalElement.classList.remove('dragging');
+
+        } 
+        // B. 케이크 위에서 드롭 (겹치기 모드에서는 위치 이동 기능 제거)
+        // 겹치기 모드에서는 드롭된 아이템을 다시 드롭해도 위치가 중앙으로 고정됩니다.
+        else if (originalElement.parentElement.id === 'drop-area') {
+            // 위치가 고정되므로, 드롭 이벤트를 무시하거나 Z-index만 조정 가능
+            originalElement.style.zIndex = 100; // 가장 위로 올리기
+        }
+
+        draggedElement = null;
+    }
+    
+    // 4. Body (전체 화면)에 드롭이 일어났을 때 호출 (옷 벗기기/제거)
+    function bodyDrop(event) {
+        event.preventDefault();
+        
+        const data = event.dataTransfer.getData("text/plain");
+        const elementToDrop = document.getElementById(data);
+
+        // 드롭된 요소가 'dropped-item'인 경우 (케이크 위에 있던 옷)
+        if (elementToDrop && elementToDrop.classList.contains('dropped-item')) {
+            
+            // 1. DOM에서 해당 요소 (케이크 위의 옷) 제거
+            elementToDrop.remove();
+            
+            // 2. 추적 맵에서 제거
+            const originalCreamId = elementToDrop.id.replace('placed-', '');
+            delete placedItems[originalCreamId];
+            
+            console.log(elementToDrop.id + " 제거됨 (옷 벗기기/원위치 복구).");
+
+        } else if (elementToDrop && elementToDrop.parentElement.id === 'clothes-tray') {
+            // 트레이에서 끌어온 옷을 케이크가 아닌 곳에 놓았을 때 원본 복구
+            elementToDrop.classList.remove('dragging');
+        }
+        
+        draggedElement = null;
+    }
+</script>
+
+</body>
+</html>
